@@ -1,0 +1,147 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>けやき予約フォームへ移動中</title>
+
+  <script src="https://static.line-scdn.net/liff/edge/2/sdk.js"></script>
+
+  <style>
+    body {
+      margin: 0;
+      font-family: sans-serif;
+      background: #f3f3f3;
+      color: #333;
+    }
+
+    .wrap {
+      max-width: 520px;
+      margin: 0 auto;
+      padding: 24px;
+      min-height: 100vh;
+      box-sizing: border-box;
+      background: #fff;
+    }
+
+    h1 {
+      font-size: 24px;
+      text-align: center;
+      margin: 20px 0;
+    }
+
+    .box {
+      background: #eef7ee;
+      border-left: 8px solid #3f7f3a;
+      padding: 16px;
+      border-radius: 8px;
+      font-weight: bold;
+      line-height: 1.7;
+      white-space: pre-wrap;
+    }
+
+    .error {
+      background: #fff0f0;
+      border-left-color: #d33;
+      color: #b00000;
+    }
+
+    button {
+      width: 100%;
+      margin-top: 20px;
+      padding: 16px;
+      font-size: 20px;
+      font-weight: bold;
+      color: #fff;
+      background: #3f7f3a;
+      border: none;
+      border-radius: 12px;
+    }
+  </style>
+</head>
+
+<body>
+  <div class="wrap">
+    <h1>けやき鍼灸整骨院<br>予約フォーム</h1>
+
+    <div id="status" class="box">
+      LINE連携を確認中です。
+    </div>
+
+    <button id="retryBtn" style="display:none;" onclick="startLiff()">
+      もう一度確認する
+    </button>
+  </div>
+
+  <script>
+    const LIFF_ID = '2006838300-Hir2SG7Z';
+
+    const GAS_URL = 'https://script.google.com/macros/s/AKfycbwJjxEmsRoLfNSs89wZSFRG_I1T5zMV5tfzD37DFMalyMUSVeetZ3IvjeoODUCOkeNu/exec';
+
+    window.onload = function() {
+      startLiff();
+    };
+
+    function setStatus(message, isError = false) {
+      const el = document.getElementById('status');
+      el.textContent = message;
+      el.className = isError ? 'box error' : 'box';
+    }
+
+    function withTimeout(promise, ms, label) {
+      return Promise.race([
+        promise,
+        new Promise((_, reject) =>
+          setTimeout(() => reject(new Error(label + ' タイムアウト')), ms)
+        )
+      ]);
+    }
+
+    async function startLiff() {
+      document.getElementById('retryBtn').style.display = 'none';
+
+      try {
+        setStatus('LIFFを初期化中です。\n少々お待ちください。');
+
+        await withTimeout(liff.init({ liffId: LIFF_ID }), 15000, 'liff.init');
+
+        if (!liff.isLoggedIn()) {
+          setStatus('LINEログインへ移動します。');
+          liff.login();
+          return;
+        }
+
+        setStatus('LINE情報を確認中です。');
+
+        const profile = await withTimeout(liff.getProfile(), 15000, 'liff.getProfile');
+
+        const lineUserId = profile.userId || '';
+        const displayName = profile.displayName || '';
+
+        if (!lineUserId) {
+          throw new Error('LINEユーザーIDが取得できませんでした');
+        }
+
+        setStatus('LINE連携が確認できました。\n予約フォームへ移動します。');
+
+        const url =
+          GAS_URL +
+          '?lineUserId=' + encodeURIComponent(lineUserId) +
+          '&displayName=' + encodeURIComponent(displayName);
+
+        window.location.href = url;
+
+      } catch (e) {
+        setStatus(
+          'LINE連携を確認できませんでした。\n\n' +
+          'この画面を閉じて、公式LINEの予約メニューをもう一度押してください。\n\n' +
+          'エラー：' + (e.message || e),
+          true
+        );
+
+        document.getElementById('retryBtn').style.display = 'block';
+      }
+    }
+  </script>
+</body>
+</html>
